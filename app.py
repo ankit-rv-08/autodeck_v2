@@ -5,6 +5,13 @@ import PyPDF2
 import io
 import requests
 
+def validate_input(text):
+    if not text.strip():
+        return False, "Input is empty. Please enter text or upload a valid PDF."
+    if len(text.strip()) < 50:
+        return False, "Input is too short. Please provide more detailed content (min 50 characters)."
+    return True, ""
+
 # -----------------------------
 # Generate Slide Content via Ollama
 # -----------------------------
@@ -21,10 +28,20 @@ def generate_slide_content(text, model="llama3"):
 
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=60)
+        response.raise_for_status()  # Raises HTTPError for bad responses (4xx or 5xx)
         data = response.json()
-        return data.get("message", {}).get("content", "⚠️ LLaMA returned no content.")
+        content = data.get("message", {}).get("content", None)
+        if not content:
+            return "⚠️ Warning: LLaMA returned no content."
+        return content
+    except requests.exceptions.Timeout:
+        return "⚠️ Error: Request timed out. Please try again later."
+    except requests.exceptions.HTTPError as err:
+        return f"⚠️ HTTP error occurred: {err}"
+    except requests.exceptions.RequestException as err:
+        return f"⚠️ Request error: {err}"
     except Exception as e:
-        return f"⚠️ Error: {str(e)}"
+        return f"⚠️ Unexpected error: {str(e)}"
 
 # -----------------------------
 # Extract text from uploaded PDF
